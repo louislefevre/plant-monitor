@@ -30,6 +30,11 @@ int moistureLevel2 = 0;
 int moistureLevel3 = 0;
 int moistureLevel4 = 0;
 
+// Minimum Conditional Variables
+int waterMin = 10; // Higher value more water, lower value less water
+int lightMin = 300; // Higher value more light, lower value less light
+int moistureMin = 450; // Higher value less water, lower value more water
+
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void setup()
@@ -121,9 +126,32 @@ void lcdDiplay()
   }
 }
 
+void activatePump(int waterPump, int flowTime)
+{
+  digitalWrite(waterPump, LOW);
+  delay(flowTime);
+  digitalWrite(waterPump, HIGH);
+}
+
+void waterPumpHandler()
+{
+  if (moistureLevel1 > moistureMin)
+    activatePump(pumpRelay1, 5000);
+
+  if (moistureLevel2 > moistureMin)
+    activatePump(pumpRelay2, 5000);
+
+  if (moistureLevel3 > moistureMin)
+    activatePump(pumpRelay3, 5000);
+
+  if (moistureLevel4 > moistureMin)
+    activatePump(pumpRelay4, 5000);
+}
+
 void loop()
 {
   collectReadings();
   printReadings();
   lcdDiplay();
+  waterPumpHandler();
 }
