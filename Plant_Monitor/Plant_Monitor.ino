@@ -60,7 +60,14 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void setup()
 {
+  /* Initializes the various processes required for the program to run.
+   *
+   * Initializes Serial so data can be read, and also sets up the LCD character display.
+   * Inputs and outputs are then initialized, with a short delay to ensure relays are
+   * given enough time to reset.
+   */
   Serial.begin(9600);
+  lcd.begin(16, 2);
   initializeInput();
   initializeOutput();
   delay(1000);
@@ -68,6 +75,11 @@ void setup()
 
 void initializeInput()
 {
+  /* Sets the analog pins to recieve input.
+   *
+   * Initializes the input pins so that they can recieve analog data from the
+   * various sensors.
+   */
   pinMode(waterSensor, INPUT);
   pinMode(lightSensor, INPUT);
   pinMode(lightButton, INPUT);
@@ -79,6 +91,13 @@ void initializeInput()
 
 void initializeOutput()
 {
+  /* Turns off all the relays and then sets their pins as output.
+   *
+   * To ensure relays are inactive at reset, they are turned off at setup.
+   * Single relays are turned off with 'LOW' and turned on with 'HIGH'
+   * Multi-relays (2, 4 and 8) are turned off with 'HIGH' and turned on with 'LOW'.
+   * The corresponding pins are then set as outputs.
+   */
   digitalWrite(lightRelay, LOW);
   digitalWrite(pumpRelay1, HIGH);
   digitalWrite(pumpRelay2, HIGH);
@@ -94,6 +113,11 @@ void initializeOutput()
 
 void collectReadings()
 {
+  /* Reads the data from the analog inputs, and assigns them to global variables.
+   *
+   * The global variables previously initialized are assigned values through reading
+   * the data being received by the various sensors.
+   */
   waterLevel = analogRead(waterSensor);
   lightLevel = analogRead(lightSensor);
   moistureLevel1 = analogRead(moistureSensor1);
@@ -104,6 +128,12 @@ void collectReadings()
 
 void printReadings()
 {
+  /* Prints the analog data to Serial.
+   *
+   * The data from the analog readings is converted into strings, and then printed to
+   * the console. This is mainly used for debugging purposes and seeing data in its
+   * rawest form.
+   */
   Serial.println("WATER SENSOR LEVEL: " + String(waterLevel));
   Serial.println("LIGHT SENSOR LEVEL: " + String(lightLevel));
   Serial.println("MOISTURE SENSOR 1 LEVEL: " + String(moistureLevel1));
@@ -115,6 +145,18 @@ void printReadings()
 
 void lcdDiplay()
 {
+  /* Displays moisture and light data on the LCD, as well as low water warnings.
+   *
+   * Averages the moisture readings and converts them to a percentage. Due to the awkward
+   * upper/lower averages of the readings, some extra work has to be done here. The same
+   * goes for the light percentage.
+   * In order to prevent readings appearing as below 0% or above 100%, checks are done
+   * to ensure values are capped.
+   * The LCD screen is then cleared to prevent any characters accidentally carrying over.
+   * The following conditional then shows a warning to refill the water supply, should
+   * it fall below minimum levels. If the water level is satisfactory, the moisture
+   * and light percentages will be displayed instead.
+   */
   int moistureAvg = ((moistureLevel1 + moistureLevel2 + moistureLevel3 + moistureLevel4) / 4) - 300;
   int lightPercent = lightLevel / 7;
   int moisturePercent = (300 - moistureAvg) / 3.5;
@@ -149,6 +191,11 @@ void lcdDiplay()
 
 void activatePump(int waterPump, int flowTime)
 {
+  /* Turns on a single water pump for a specific period.
+   *
+   * Activates a water pump for a few seconds, then turns it off again. The delay is how
+   * long the water will run for, and can be adjusted for each individual plant.
+   */
   digitalWrite(waterPump, LOW);
   delay(flowTime);
   digitalWrite(waterPump, HIGH);
@@ -156,6 +203,11 @@ void activatePump(int waterPump, int flowTime)
 
 void waterPumpHandler()
 {
+  /* Activates each individual water pump if the moisture is low enough.
+   *
+   * Individual checks are done for each moisture sensor. If the value read is lower than
+   * the minimum moisture required, the corresponding water pump is activated.
+   */
   if (moistureLevel1 > moistureMin)
     activatePump(pumpRelay1, 5000);
 
@@ -171,6 +223,12 @@ void waterPumpHandler()
 
 void autoLight()
 {
+  /* Provides automatic control over the light bulb through the use of the values picked
+   * up by the photosensor.
+   *
+   * If the value recieved from the light sensor is below the minimum amount of light
+   * required, the light bulb is turned on.
+   */
   if (lightLevel < lightMin)
     digitalWrite(lightRelay, HIGH);
   else
@@ -179,6 +237,16 @@ void autoLight()
 
 void manLight()
 {
+  /* Provides manual control for the light bulb via a button.
+   *
+   * Reads the current state of the button to check if its on. If it's being pressed,
+   * its previous state was off and it's been more than the debounce duration since
+   * the last time it was pressed, then the state of the light is switched. If it was
+   * on then it is turned off, otherwise it's turned on. The new light state is then
+   * written to the lights relay, and the state of the previous button state is saved.
+   *
+   * Note: manLight() code sourced from https://www.electroschematics.com/turn-on-led-button-arduino/
+   */
   buttonStateAuto = digitalRead(lightButton);
   if (buttonStateAuto == HIGH && previous == LOW && millis() - buttonTime > debounce)
   {
@@ -195,6 +263,17 @@ void manLight()
 
 void lightControl()
 {
+  /* Allows the user to switch between auto and manual lighting.
+   *
+   * Reads the current state of the button and compares it against the previous state.
+   * If they are not the same and the button is being pressed, the time it was pressed
+   * is logged. Once the button is released, the time of release is logged.
+   * The difference between these two values is calculated, which tells us how much
+   * time the button was held down for. If held for enough time, the current state of
+   * the light control is switched (e.g. auto changes to manual).
+   *
+   * Note: lightControl() code sourced from https://stackoverflow.com/questions/32427630/how-to-detect-how-long-a-button-was-pressed-in-arduino
+   */
   buttonState = digitalRead(lightButton);
 
   if (buttonState != lastButtonState)
@@ -222,6 +301,16 @@ void lightControl()
 
 void loop()
 {
+  /* Loops through each function of the program repeatedly.
+   *
+   * Majority of the functions run on delayed time (e.g. every 1 second) to help save
+   * power, since readings are not necessary to gather very frequently. However, in order
+   * to still allow code to run and not stop entirely (as is with the case of delay()),
+   * we measure how much time has passed between each loop and only run the enclosed
+   * functions when the specific delay time has passed.
+   *
+   * Note: Timed delay code sourced from https://dzone.com/articles/arduino-using-millis-instead-of-delay
+   */
   if (millis() > currentTime + delayTime)
   {
     currentTime = millis();
