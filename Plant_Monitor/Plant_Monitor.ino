@@ -1,3 +1,5 @@
+#include <LiquidCrystal.h>
+
 // Digital Pin Variables
 const int pumpRelay1 = 2;
 const int pumpRelay2 = 3;
@@ -5,6 +7,12 @@ const int pumpRelay3 = 4;
 const int pumpRelay4 = 5;
 const int lightRelay = 6;
 const int lightButton = 7;
+const int rs = 8;
+const int en = 9;
+const int d4 = 10;
+const int d5 = 11;
+const int d6 = 12;
+const int d7 = 13;
 
 // Analog Pin Variables
 const int waterSensor = A0;
@@ -21,6 +29,8 @@ int moistureLevel1 = 0;
 int moistureLevel2 = 0;
 int moistureLevel3 = 0;
 int moistureLevel4 = 0;
+
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void setup()
 {
@@ -77,8 +87,43 @@ void printReadings()
   Serial.println("-------------------------");
 }
 
+void lcdDiplay()
+{
+  int moistureAvg = ((moistureLevel1 + moistureLevel2 + moistureLevel3 + moistureLevel4) / 4) - 300;
+  int lightPercent = lightLevel / 7;
+  int moisturePercent = (300 - moistureAvg) / 3.5;
+
+  if (lightPercent > 100)
+    lightPercent = 100;
+  else if (lightPercent < 0)
+    lightPercent = 0;
+
+  if (moisturePercent > 100)
+    moisturePercent = 100;
+  else if (moisturePercent < 0)
+    moisturePercent = 0;
+
+  lcd.clear();
+
+  if (waterLevel < waterMin)
+  {
+    lcd.setCursor(0, 0);
+    lcd.print("----WARNING!----");
+    lcd.setCursor(0, 1);
+    lcd.print("  REFILL WATER  ");
+  }
+  else
+  {
+    lcd.setCursor(0, 0);
+    lcd.print("Moisture: " + String(moisturePercent) + "%");
+    lcd.setCursor(0, 1);
+    lcd.print("Light: " + String(lightPercent) + "%");
+  }
+}
+
 void loop()
 {
   collectReadings();
   printReadings();
+  lcdDiplay();
 }
