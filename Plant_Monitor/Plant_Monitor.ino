@@ -35,6 +35,27 @@ int waterMin = 10; // Higher value more water, lower value less water
 int lightMin = 300; // Higher value more light, lower value less light
 int moistureMin = 450; // Higher value less water, lower value more water
 
+// Light Control Variables
+bool manualLight = false;
+int buttonState = 0;
+int lastButtonState = 0;
+int startPressed = 0;
+int endPressed = 0;
+int timeHold = 0;
+int timeReleased = 0;
+int timeMin = 3000;
+
+// Manual Light Variables
+int lightState = LOW;
+int previous = LOW;
+int buttonStateAuto = 0;
+unsigned long buttonTime = 0;
+const long debounce = 1000;
+
+// Loop Delay Variables
+unsigned long currentTime = 0;
+const long delayTime = 1000;
+
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 void setup()
@@ -148,10 +169,66 @@ void waterPumpHandler()
     activatePump(pumpRelay4, 5000);
 }
 
+void autoLight()
+{
+  if (lightLevel < lightMin)
+    digitalWrite(lightRelay, HIGH);
+  else
+    digitalWrite(lightRelay, LOW);
+}
+
+void manLight()
+{
+  buttonStateAuto = digitalRead(lightButton);
+  if (buttonStateAuto == HIGH && previous == LOW && millis() - buttonTime > debounce)
+  {
+    if (lightState == HIGH)
+      lightState = LOW;
+    else
+      lightState = HIGH;
+
+    buttonTime = millis();
+  }
+  digitalWrite(lightRelay, lightState);
+  previous == buttonStateAuto;
+}
+
+void lightControl()
+{
+  buttonState = digitalRead(lightButton);
+
+  if (buttonState != lastButtonState)
+  {
+    if (buttonState == HIGH)
+    {
+      startPressed = millis();
+    }
+    else
+    {
+      endPressed = millis();
+      timeHold = endPressed - startPressed;
+
+      if (timeHold >= timeMin)
+        manualLight = !manualLight;
+    }
+  }
+  lastButtonState = buttonState;
+
+  if (manualLight)
+    manLight();
+  else
+    autoLight();
+}
+
 void loop()
 {
-  collectReadings();
-  printReadings();
-  lcdDiplay();
-  waterPumpHandler();
+  if (millis() > currentTime + delayTime)
+  {
+    currentTime = millis();
+    collectReadings();
+    printReadings();
+    lcdDiplay();
+    waterPumpHandler();
+  }
+  lightControl();
 }
